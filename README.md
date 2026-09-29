@@ -26,7 +26,7 @@ The project includes an updated interactive demo walkthrough highlighting the mo
 
 ### ⚡ Core Agentic Capabilities
 - **Real Exercise & Workout Discovery**: Queries the free [wger Workout Manager](https://wger.de) REST API (`/api/v2/exerciseinfo/`) in real time for verified fitness movements, targeted muscle groups, and exercise instructions without hardcoded mocks.
-- **Multimodal Image Generation**: Emits dynamic AI visualizations for customized healthy meals, smoothie bowls, and fitness items using `gemini-3.1-flash-lite-image`. Uploaded automatically to Google Cloud Storage with instant public HTTPS URLs.
+- **Multimodal Image Generation**: Emits dynamic photorealistic AI visualizations for customized healthy meals, protein bowls, and fitness nutrition using Vertex AI `gemini-2.5-flash-image`. Uploaded automatically to Google Cloud Storage with instant public HTTPS URLs.
 - **Demo Video Generation**: Generates workout movement demonstration clips stored in Google Cloud Storage and returned as streaming video resources.
 - **Cross-Session Long-Term Memory**: Powered by Vertex AI Memory Bank (`agentengine://6252904485220253696`). Automatically retains user allergies, dietary preferences, and personal fitness constraints across disparate chat sessions using `PreloadMemoryTool` and callback extraction.
 - **Serverless Cloud Run Architecture**: Deployed as an authenticated microservices backend running the A2A protocol, paired with a custom branded FastAPI chat frontend.
@@ -232,3 +232,12 @@ gcloud projects add-iam-policy-binding YOUR_PROJECT_ID --member="serviceAccount:
 # Cloud Storage for image/video artifacts
 gcloud storage buckets add-iam-policy-binding gs://YOUR_BUCKET_NAME --member="serviceAccount:${SA}" --role="roles/storage.objectAdmin"
 ```
+
+---
+
+## 📚 References & Workshop Resources
+
+- **Build With Gemini Workshop Guide (Bengaluru)**: [https://goo.gle/bwg3-blr](https://goo.gle/bwg3-blr)
+- **Google Agent Development Kit (ADK) Documentation**: [https://google.github.io/agent-development-kit/](https://google.github.io/agent-development-kit/)
+- **Vertex AI Memory Bank**: [Vertex AI Reasoning Engine & Memory](https://cloud.google.com/vertex-ai/docs/agent-engine/overview)
+- **wger Workout Manager REST API**: [https://wger.de/en/software/api](https://wger.de/en/software/api)
