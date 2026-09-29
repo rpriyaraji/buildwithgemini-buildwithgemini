@@ -43,42 +43,38 @@ def search_exercises(query: str, limit: int = 5) -> str:
     """Searches for real exercises, muscles, and workouts using the free wger public API.
 
     Args:
-        query: Name or keyword of the exercise (e.g., 'squat', 'biceps', 'press').
+        query: Name or keyword of the exercise (e.g., 'squat', 'biceps', 'press', 'chest').
         limit: Max number of results to return (default: 5).
 
     Returns:
-        JSON string containing matching exercises, descriptions, and muscle info.
+        String containing matching exercises, descriptions, and category info.
     """
     try:
         url = "https://wger.de/api/v2/exerciseinfo/"
-        params = {"language": 2, "limit": limit}
+        params = {"language": 2, "limit": 100}
         resp = requests.get(url, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()
         results = data.get("results", [])
         
         matches = []
-        q = query.lower()
+        q = query.lower().strip()
+        words = [w for w in q.split() if len(w) > 2]
+
         for item in results:
-            translations = item.get("translations", [])
-            for t in translations:
+            cat = item.get("category", {}).get("name", "General")
+            for t in item.get("translations", []):
                 if t.get("language") == 2:
                     name = t.get("name", "")
-                    desc = t.get("description", "")
-                    if not q or q in name.lower() or q in desc.lower():
-                        category = item.get("category", {}).get("name", "General")
-                        clean_desc = desc.replace("<p>", "").replace("</p>", "").strip()
-                        matches.append(f"- **{name}** ({category}): {clean_desc[:160]}")
+                    desc = t.get("description", "").replace("<p>", "").replace("</p>", "").replace("&nbsp;", " ").strip()
+                    target_text = f"{name} {desc} {cat}".lower()
+                    
+                    if not q or q in target_text or any(w in target_text for w in words):
+                        matches.append(f"- **{name}** ({cat}): {desc[:160]}")
                         break
-        if not matches:
-            for item in results[:limit]:
-                for t in item.get("translations", []):
-                    if t.get("language") == 2:
-                        name = t.get("name", "")
-                        desc = t.get("description", "").replace("<p>", "").replace("</p>", "").strip()
-                        category = item.get("category", {}).get("name", "General")
-                        matches.append(f"- **{name}** ({category}): {desc[:160]}")
-                        break
+            if len(matches) >= limit:
+                break
+
         return "\n".join(matches) if matches else "No exercises found matching your query."
     except Exception as e:
         return f"Exercise search unavailable: {str(e)}"

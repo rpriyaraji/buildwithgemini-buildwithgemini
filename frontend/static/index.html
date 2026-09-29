@@ -543,13 +543,39 @@ function buildNode(id, comps, seen) {
       img.alt = boundStr(props.alt) || "Image";
       return img;
     }
+    case "Video": {
+      const src = boundStr(props.url || props.src);
+      if (!/^https?:\/\//i.test(src)) return null;
+      const v = el("video", "a2img");
+      v.src = src;
+      v.controls = true;
+      v.autoplay = false;
+      v.style.maxHeight = "360px";
+      v.style.width = "100%";
+      return v;
+    }
+    case "Audio": {
+      const src = boundStr(props.url || props.src);
+      if (!/^https?:\/\//i.test(src)) return null;
+      const a = el("audio", null);
+      a.src = src;
+      a.controls = true;
+      return a;
+    }
     case "Icon": {
       const s = el("span", "material-symbols-outlined");
       s.textContent = iconName(boundStr(props.name) || props.name);
       return s;
     }
-    default:
+    default: {
+      const fallbackKids = kids();
+      if (fallbackKids.length) {
+        const d = el("div", "a2col");
+        fallbackKids.forEach(n => d.appendChild(n));
+        return d;
+      }
       return null;
+    }
   }
 }
 

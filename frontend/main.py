@@ -24,23 +24,14 @@ Run:
   python main.py                 # -> http://localhost:8080
 """
 
+import json
 import os
+import re
 import uuid
 
 import google.auth
 import google.auth.transport.requests
 import httpx
-from a2a.client import ClientConfig, ClientFactory
-from a2a.types import (
-    AgentCard,
-    FilePart,
-    Message,
-    Part,
-    Role,
-    TaskArtifactUpdateEvent,
-    TextPart,
-    TransportProtocol,
-)
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -100,62 +91,6 @@ async def _json_errors(request: Request, exc: Exception):
 
 # Reuse ONE A2A context per user so the agent remembers the conversation.
 _contexts: dict[str, str] = {}
-# Cache the agent card after the first fetch.
-_card: AgentCard | None = None
-
-
-async def _get_card(client: httpx.AsyncClient) -> AgentCard:
-    global _card
-    if _card is None:
-        resp = await client.get(A2A_CARD_URL)
-        resp.raise_for_status()
-        card = AgentCard(**resp.json())
-        # Agent Runtime does not serve a public card URL, so point the client at
-        # the passthrough base for message sends.
-        card.url = A2A_BASE
-        _card = card
-    return _card
-
-
-def _extract_parts(parts: list) -> list[dict]:
-    """Turn A2A response parts into structured parts for the chat UI.
-
-    Text parts pass through as {"kind": "text"}. A2UI data parts (tagged
-    application/json+a2ui) become {"kind": "a2ui", "data": <message>} so the UI
-    renders the card; each data part is one A2UI message (beginRendering or
-    surfaceUpdate). Also unmarshals wrapped <a2a_datapart_json> strings emitted by ADK.
-    """
-    import json
-    import re
-    out: list[dict] = []
-    for p in parts:
-        root = getattr(p, "root", p)
-        text = getattr(root, "text", None)
-        if isinstance(root, TextPart) and text:
-            if "<a2a_datapart_json>" in text:
-                matches = re.findall(r"<a2a_datapart_json>(.*?)</a2a_datapart_json>", text, re.DOTALL)
-                for m in matches:
-                    try:
-                        parsed = json.loads(m.strip())
-                        if parsed.get("metadata", {}).get("mimeType") == _A2UI_MIME:
-                            out.append({"kind": "a2ui", "data": parsed.get("data")})
-                    except Exception:
-                        pass
-                clean_text = re.sub(r"<a2a_datapart_json>.*?</a2a_datapart_json>", "", text, flags=re.DOTALL).strip()
-                if clean_text:
-                    out.append({"kind": "text", "text": clean_text})
-            else:
-                out.append({"kind": "text", "text": text})
-        elif getattr(root, "data", None) is not None:
-            meta = getattr(root, "metadata", None) or {}
-            mime = meta.get("mimeType") if isinstance(meta, dict) else None
-            if mime == _A2UI_MIME:
-                out.append({"kind": "a2ui", "data": root.data})
-        elif isinstance(root, FilePart):
-            uri = getattr(getattr(root, "file", None), "uri", None)
-            if uri:
-                out.append({"kind": "text", "text": uri})
-    return out
 
 
 @app.post("/chat")
@@ -188,39 +123,75 @@ async def chat(req: Request):
         if task.get("contextId"):
             _contexts[user_id] = task["contextId"]
 
+        def _parse_part(p):
+            # Check data object first
+            data_dict = p.get("data")
+            if isinstance(data_dict, dict):
+                if "data" in data_dict and data_dict.get("metadata", {}).get("mimeType") == _A2UI_MIME:
+                    return {"kind": "a2ui", "data": data_dict["data"]}
+                elif "surfaceUpdate" in data_dict or "beginRendering" in data_dict:
+                    return {"kind": "a2ui", "data": data_dict}
+            
+            # Check text field
+            txt = p.get("text", "")
+            if isinstance(txt, str) and txt.strip():
+                # 1. Check for embedded <a2ui-json> tags
+                m = re.search(r"<a2ui-json>(.*?)</a2ui-json>", txt, re.DOTALL)
+                if m:
+                    intro_text = re.sub(r"<a2ui-json>.*?</a2ui-json>", "", txt, flags=re.DOTALL).strip()
+                    extracted_parts = []
+                    if intro_text:
+                        extracted_parts.append({"kind": "text", "text": intro_text})
+                    try:
+                        obj = json.loads(m.group(1).strip())
+                        if isinstance(obj, dict):
+                            if "components" in obj:
+                                extracted_parts.append({"kind": "a2ui", "data": {"surfaceUpdate": obj}})
+                            elif "surfaceUpdate" in obj or "beginRendering" in obj:
+                                extracted_parts.append({"kind": "a2ui", "data": obj})
+                    except Exception:
+                        pass
+                    if extracted_parts:
+                        return extracted_parts
+
+                # 2. Check for bare JSON
+                cleaned = re.sub(r"</?(?:a2a_datapart_json|a2ui-json)>", "", txt).strip()
+                if cleaned.startswith("{") and ("components" in cleaned or "surfaceUpdate" in cleaned or "beginRendering" in cleaned):
+                    try:
+                        obj = json.loads(cleaned)
+                        if isinstance(obj, dict):
+                            if "components" in obj:
+                                return [{"kind": "a2ui", "data": {"surfaceUpdate": obj}}]
+                            elif "surfaceUpdate" in obj or "beginRendering" in obj:
+                                return [{"kind": "a2ui", "data": obj}]
+                    except Exception:
+                        pass
+                return [{"kind": "text", "text": txt}]
+            return []
+
         # 1. First check artifacts for rich A2UI or text
         for artifact in task.get("artifacts", []):
             for p in artifact.get("parts", []):
-                data_dict = p.get("data")
-                if isinstance(data_dict, dict):
-                    # Check if wrapped in data.data or direct
-                    if "data" in data_dict and data_dict.get("metadata", {}).get("mimeType") == _A2UI_MIME:
-                        parts.append({"kind": "a2ui", "data": data_dict["data"]})
-                    elif "surfaceUpdate" in data_dict or "beginRendering" in data_dict:
-                        parts.append({"kind": "a2ui", "data": data_dict})
-                elif p.get("text"):
-                    parts.append({"kind": "text", "text": p["text"]})
+                parsed = _parse_part(p)
+                if parsed:
+                    parts.extend(parsed)
 
         # 2. Check history for agent messages
         if not parts:
             for h in task.get("history", []):
                 if h.get("role") in ("ROLE_AGENT", "model", "agent"):
                     for p in h.get("parts", []):
-                        data_dict = p.get("data")
-                        if isinstance(data_dict, dict):
-                            if "data" in data_dict and data_dict.get("metadata", {}).get("mimeType") == _A2UI_MIME:
-                                parts.append({"kind": "a2ui", "data": data_dict["data"]})
-                            elif "surfaceUpdate" in data_dict or "beginRendering" in data_dict:
-                                parts.append({"kind": "a2ui", "data": data_dict})
-                        elif p.get("text"):
-                            parts.append({"kind": "text", "text": p["text"]})
+                        parsed = _parse_part(p)
+                        if parsed:
+                            parts.extend(parsed)
 
         # 3. Direct message in result
         if not parts and "message" in result:
             msg = result["message"]
             for p in msg.get("parts", []):
-                if p.get("text"):
-                    parts.append({"kind": "text", "text": p["text"]})
+                parsed = _parse_part(p)
+                if parsed:
+                    parts.extend(parsed)
 
     if not parts:
         parts = [{"kind": "text", "text": "(The agent didn't return a reply.)"}]
