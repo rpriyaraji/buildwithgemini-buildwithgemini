@@ -6,22 +6,29 @@ An intelligent, full-stack agentic fitness and nutrition coach built with the Go
 
 ---
 
-## 📹 Demo Video
+## 📹 Demo Video & Walkthrough
 
-The project includes a complete demo walkthrough video with an upbeat lo-fi soundtrack demonstrating real API discovery, image generation, A2UI cards, and allergy-aware memory:
+The project includes an updated interactive demo walkthrough highlighting the modern dark-mode glassmorphic UI, real API tool lookups, AI image generation, A2UI cards, and allergy-aware long-term memory:
 
-- **Watch on GitHub**: [demo.mp4](demo.mp4)
-- **Direct Video Stream (Cloud Storage)**: [https://storage.googleapis.com/bwg3-qwiklabs-gcp-04-cc6a8d791f03/videos/demo.mp4](https://storage.googleapis.com/bwg3-qwiklabs-gcp-04-cc6a8d791f03/videos/demo.mp4)
+- **Watch in Repository**: [demo.mp4](demo.mp4)
+- **Direct Video Stream (Google Cloud Storage)**: [https://storage.googleapis.com/bwg3-qwiklabs-gcp-04-cc6a8d791f03/videos/demo.mp4](https://storage.googleapis.com/bwg3-qwiklabs-gcp-04-cc6a8d791f03/videos/demo.mp4)
 
 ---
 
-## 🌟 Features
+## 🌟 Modern UI & System Features
 
-- **Real Exercise & Workout Discovery**: Queries the free [wger Workout Manager](https://wger.de) REST API (`/api/v2/exerciseinfo/`) to fetch verified exercises, form descriptions, and targeted muscles in real time.
+### 🎨 Modern Dark-Mode & Glassmorphic UI
+- **Obsidian & Emerald Palette**: High-contrast, sleek design built with [Plus Jakarta Sans](https://fonts.google.com/specimen/Plus+Jakarta+Sans) typography.
+- **Glassmorphic Cards**: Semi-transparent frosted layers (`backdrop-filter: blur(16px)`) with glowing green accent borders.
+- **Interactive Quick-Prompt Chips**: Clickable prompt pills for instantaneous queries (*Search Squat Workouts*, *Generate Protein Bowl Image*, *Set Peanut Allergy*, *Recommend Safe Snacks*).
+- **Personalized Avatars & Typing State**: Distinct avatars (`🏋️‍♂️` Coach / `👤` User) with bouncing multi-dot typing indicators during agent tool and generation steps.
+- **Native A2UI Card & Media Renderer**: Automatically formats A2UI v0.8 schemas into styled cards, multi-column layouts, and responsive images/videos.
+
+### ⚡ Core Agentic Capabilities
+- **Real Exercise & Workout Discovery**: Queries the free [wger Workout Manager](https://wger.de) REST API (`/api/v2/exerciseinfo/`) in real time for verified fitness movements, targeted muscle groups, and exercise instructions without hardcoded mocks.
 - **Multimodal Image Generation**: Emits dynamic AI visualizations for customized healthy meals, smoothie bowls, and fitness items using `gemini-3.1-flash-lite-image`. Uploaded automatically to Google Cloud Storage with instant public HTTPS URLs.
 - **Demo Video Generation**: Generates workout movement demonstration clips stored in Google Cloud Storage and returned as streaming video resources.
 - **Cross-Session Long-Term Memory**: Powered by Vertex AI Memory Bank (`agentengine://6252904485220253696`). Automatically retains user allergies, dietary preferences, and personal fitness constraints across disparate chat sessions using `PreloadMemoryTool` and callback extraction.
-- **Rich A2UI Interactive Rendering**: Emits A2UI standard catalog specifications (v0.8) displaying cards, columns, custom headers, and embedded images seamlessly.
 - **Serverless Cloud Run Architecture**: Deployed as an authenticated microservices backend running the A2A protocol, paired with a custom branded FastAPI chat frontend.
 
 ---
@@ -36,26 +43,26 @@ The project includes a complete demo walkthrough video with an upbeat lo-fi soun
 ## 🏗️ Architecture & Protocols
 
 ```
-┌─────────────────────────────────┐
-│          Web Browser            │
-│   (Custom HTML/CSS/JS Chat)     │
-└────────────────▲────────────────┘
-                 │ HTTP (JSON/A2UI cards)
-┌────────────────▼────────────────┐
-│       FastAPI Web Proxy         │  (Cloud Run: fitness-coach-frontend)
-│   (ID Token Auth, A2A Client)   │
-└────────────────▲────────────────┘
-                 │ A2A Protocol (JSON-RPC 2.0)
-┌────────────────▼────────────────┐
-│      Fitness Coach Agent        │  (Cloud Run: fitness-coach)
-│    (ADK Root Agent + Tools)     │
-└────────────────▲────────────────┘
-         │       │        │
-         ▼       ▼        ▼
-┌────────────┐ ┌────────────────────┐ ┌───────────────────────┐
-│  wger API  │ │ Vertex AI Memory   │ │ Cloud Storage Bucket  │
-│  Exercises │ │ (Allergies/Prefs)  │ │ (Images & Videos)     │
-└────────────┘ └────────────────────┘ └───────────────────────┘
+┌───────────────────────────────────────────────┐
+│           Web Browser (Glassmorphism)         │
+│  (Plus Jakarta Sans, Avatars, Quick Chips)    │
+└───────────────────────▲───────────────────────┘
+                        │ HTTP / JSON (Text & A2UI cards)
+┌───────────────────────▼───────────────────────┐
+│              FastAPI Web Proxy                │  (Cloud Run: fitness-coach-frontend)
+│  (ID Token Auth, A2A JSON-RPC Client, Cache)  │
+└───────────────────────▲───────────────────────┘
+                        │ A2A Protocol (JSON-RPC 2.0)
+┌───────────────────────▼───────────────────────┐
+│             Fitness Coach Agent               │  (Cloud Run: fitness-coach)
+│           (ADK Root Agent + Tools)            │
+└───────────────────────▲───────────────────────┘
+         │              │              │
+         ▼              ▼              ▼
+┌────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
+│    wger API    │ │   Vertex AI Memory      │ │  Cloud Storage Bucket   │
+│ (Workout Data) │ │ (Allergies/Preferences) │ │    (Images & Videos)    │
+└────────────────┘ └─────────────────────────┘ └─────────────────────────┘
 ```
 
 ---
@@ -105,7 +112,7 @@ Open [http://localhost:8080](http://localhost:8080) to interact with the agent t
 
 ---
 
-### 2. Running the Frontend Locally
+### 2. Running the Modern Frontend Locally
 
 The frontend proxy communicates with the deployed Cloud Run agent over A2A and renders A2UI cards natively:
 ```bash
@@ -144,7 +151,7 @@ cd fitness-coach
 agents-cli deploy --deployment-target cloud_run --memory 2Gi --max-instances 5 --no-confirm-project
 ```
 
-#### Deploy the Frontend:
+#### Deploy the Modern Frontend:
 ```bash
 cd frontend
 gcloud run deploy fitness-coach-frontend \
