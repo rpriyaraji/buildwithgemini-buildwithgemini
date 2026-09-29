@@ -1,4 +1,4 @@
-name: "simple-agent"
+name: "fitness-coach"
 acli_version: "1.4.0"
 agent_directory: "app"
 region: "us-east1"
