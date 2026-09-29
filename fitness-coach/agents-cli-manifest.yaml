@@ -6,7 +6,7 @@ base_template: "adk"
 generated_at: "2026-09-29T06:42:15.434447+00:00"
 language: "python"
 create_params:
-  deployment_target: "agent_runtime"
+  deployment_target: "cloud_run"
   session_type: "none"
   cicd_runner: "skip"
   is_a2a: true
