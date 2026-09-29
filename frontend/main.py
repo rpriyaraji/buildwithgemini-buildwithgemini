@@ -128,9 +128,9 @@ async def chat(req: Request):
             data_dict = p.get("data")
             if isinstance(data_dict, dict):
                 if "data" in data_dict and data_dict.get("metadata", {}).get("mimeType") == _A2UI_MIME:
-                    return {"kind": "a2ui", "data": data_dict["data"]}
+                    return [{"kind": "a2ui", "data": data_dict["data"]}]
                 elif "surfaceUpdate" in data_dict or "beginRendering" in data_dict:
-                    return {"kind": "a2ui", "data": data_dict}
+                    return [{"kind": "a2ui", "data": data_dict}]
             
             # Check text field
             txt = p.get("text", "")

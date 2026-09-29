@@ -90,15 +90,22 @@ def generate_item_image(item_name: str, tool_context: ToolContext) -> str:
         The public HTTPS URL of the uploaded image.
     """
     try:
-        # Try generating using gemini-3.1-flash-lite-image
-        client = genai.Client(vertexai=True, project=PROJECT_ID, location="global")
-        resp = client.models.generate_images(
-            model="gemini-3.1-flash-lite-image",
-            prompt=f"A clean, vibrant fitness illustration of {item_name}, modern flat style",
-            config=dict(number_of_images=1, output_mime_type="image/jpeg"),
+        # Use Vertex AI gemini-2.5-flash-image in us-central1 to generate photorealistic image
+        client = genai.Client(vertexai=True, project=PROJECT_ID, location="us-central1")
+        resp = client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=f"A delicious, appetizing {item_name}, high protein meal, professional food photography, natural lighting, crisp detail",
         )
-        img_bytes = resp.generated_images[0].image.image_bytes
-    except Exception:
+        img_bytes = None
+        for p in resp.candidates[0].content.parts:
+            if hasattr(p, "inline_data") and p.inline_data and p.inline_data.data:
+                img_bytes = p.inline_data.data
+                break
+        if not img_bytes:
+            raise ValueError("No image bytes returned in model response")
+        mime_type = "image/png"
+        ext = "png"
+    except Exception as e:
         # High quality graphic fallback
         img = Image.new("RGB", (480, 320), color=(30, 136, 229))
         draw = ImageDraw.Draw(img)
@@ -109,8 +116,10 @@ def generate_item_image(item_name: str, tool_context: ToolContext) -> str:
         buf = io.BytesIO()
         img.save(buf, format="JPEG")
         img_bytes = buf.getvalue()
+        mime_type = "image/jpeg"
+        ext = "jpg"
 
-    artifact_name = f"image_{int(datetime.datetime.now().timestamp())}.jpg"
+    artifact_name = f"image_{int(datetime.datetime.now().timestamp())}.{ext}"
     try:
         tool_context.save_artifact(filename=artifact_name, artifact=img_bytes)
     except Exception:
@@ -119,7 +128,7 @@ def generate_item_image(item_name: str, tool_context: ToolContext) -> str:
     storage_client = storage.Client(project=PROJECT_ID)
     bucket = storage_client.bucket(GCS_BUCKET)
     blob = bucket.blob(f"images/{artifact_name}")
-    blob.upload_from_string(img_bytes, content_type="image/jpeg")
+    blob.upload_from_string(img_bytes, content_type=mime_type)
     return f"https://storage.googleapis.com/{GCS_BUCKET}/images/{artifact_name}"
 
 
