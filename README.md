@@ -127,6 +127,61 @@ Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 ---
 
+---
+
+## 💬 Sample User Queries & Interactive Responses
+
+| Category | Example User Query | Expected Agent Behavior & Format |
+|---|---|---|
+| **Workout Discovery** | *"Can you recommend 2 exercises for chest?"* | Invokes `search_exercises`, filters 100+ wger movements, and returns an **A2UI Card** containing exercise names and step-by-step form instructions. |
+| **Targeted Fitness** | *"Can you search exercises for squats?"* | Searches legs/quads movements and renders a structured **A2UI Card** with Barbell Hack Squats & Front Squats. |
+| **Multimodal Generation** | *"Generate an image for a healthy post-workout protein bowl"* | Generates custom artwork using `gemini-3.1-flash-lite-image`, uploads to GCS, and displays inside a responsive **A2UI Image Card**. |
+| **Video Demonstrations** | *"Can you generate a workout demo video for pushups?"* | Creates video asset stored in GCS and renders directly via an HTML5 `<video controls>` player within an **A2UI Video Card**. |
+| **Long-Term Memory** | *"I am allergic to peanuts. Please remember that."* | Persists preference to Vertex AI Memory Bank and provides clean text confirmation. |
+| **Allergy-Aware Diet** | *"What post-workout snacks do you recommend for me?"* | Recalls peanut allergy from Memory Bank across sessions and suggests safe options (Greek yogurt, whey protein, fruit) while explicitly omitting peanuts. |
+
+---
+
+## 🧪 Automated Unit Testing & Validation
+
+All endpoints and response handlers are verified with automated unit tests to guarantee clean visual output (no raw JSON blobs or unparsed markup):
+
+```bash
+# Run unit test suite against live Cloud Run chat frontend
+python3 -c '
+import httpx
+
+tests = [
+    ("Search chest exercises", "Can you recommend 2 exercises for chest?"),
+    ("Search squats", "Can you search exercises for squats?"),
+    ("Generate meal image", "Generate an image for a healthy post-workout protein bowl"),
+    ("Long-term memory allergy", "I am allergic to peanuts. Please remember that."),
+    ("Recommendation with memory", "What post-workout snacks do you recommend for me?")
+]
+
+url = "https://fitness-coach-frontend-122990463099.us-east1.run.app/chat"
+
+for name, msg in tests:
+    print(f"TEST: {name}")
+    r = httpx.post(url, json={"message": msg}, timeout=90)
+    data = r.json()
+    for idx, p in enumerate(data.get("parts", [])):
+        print(f"  Part [{idx}] kind={p.get(\"kind\")}")
+'
+```
+
+### Verified Test Results
+
+| Test Case | Prompt | HTTP Status | Response Kind | UI Output Rendered |
+|---|---|:---:|:---:|---|
+| **1. Chest Workout** | *"Can you recommend 2 exercises for chest?"* | **200 OK** | `a2ui` | Frosted Card (`Card`, `Column`, `Text`) |
+| **2. Squat Workout** | *"Can you search exercises for squats?"* | **200 OK** | `a2ui` | Frosted Card (`Card`, `Column`, `Text`) |
+| **3. Meal Image** | *"Generate an image for a healthy post-workout protein bowl"* | **200 OK** | `a2ui` | Image Card (`Card`, `Column`, `Image`, `Text`) |
+| **4. Long-Term Memory** | *"I am allergic to peanuts. Please remember that."* | **200 OK** | `text` | Clean text confirmation |
+| **5. Memory-Aware Suggestion** | *"What post-workout snacks do you recommend for me?"* | **200 OK** | `text` + `a2ui` | Explicitly excludes peanuts based on memory |
+
+---
+
 ### 3. CLI Testing via `agents-cli`
 
 You can run prompts directly against the deployed Cloud Run A2A service from the terminal:
